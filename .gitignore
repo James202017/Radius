@@ -4,6 +4,9 @@ dist/
 build/
 .env
 .env.local
+env.txt
+*.env
+*.env.local
 *.log
 .vscode/
 .idea/
