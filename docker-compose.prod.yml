@@ -1,0 +1,96 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    platform: linux/amd64
+    container_name: radius_db
+    environment:
+      POSTGRES_USER: radius
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-radius_secret_change_me}
+      POSTGRES_DB: radius_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radius -d radius_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - radius
+
+  redis:
+    image: redis:7-alpine
+    container_name: radius_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - radius
+
+  backend:
+    image: ${BACKEND_IMAGE:-radius-backend:latest}
+    container_name: radius_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://radius:${DB_PASSWORD:-radius_secret_change_me}@db:5432/radius_db
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: ${SECRET_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      ENVIRONMENT: production
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - radius
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-radius-frontend:latest}
+    container_name: radius_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+      NEXT_PUBLIC_YANDEX_MAPS_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_KEY}
+    restart: unless-stopped
+    networks:
+      - radius
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    container_name: radius_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    restart: unless-stopped
+    networks:
+      - radius
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  radius:
+    driver: bridge
