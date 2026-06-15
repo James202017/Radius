@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone", // ← оптимально для Docker/Fly.io
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "t.me" },

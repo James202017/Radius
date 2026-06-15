@@ -1,0 +1,64 @@
+services:
+  # ── Backend ─────────────────────────────────────────────────
+  - type: web
+    name: radius-backend
+    runtime: docker
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: radius-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: radius-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://radius-frontend.onrender.com,https://web.telegram.org
+    healthCheckPath: /health
+    plan: free
+
+  # ── Frontend ────────────────────────────────────────────────
+  - type: web
+    name: radius-frontend
+    runtime: static
+    rootDir: ./frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./.next/static
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://radius-backend.onrender.com/api/v1
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://radius-backend.onrender.com/api/v1
+      - key: NEXT_PUBLIC_YANDEX_MAPS_KEY
+        sync: false
+    plan: free
+
+  # ── Redis ─────────────────────────────────────────────────
+  - type: redis
+    name: radius-redis
+    plan: free
+    ipAllowList: []
+
+  # ── PostgreSQL ────────────────────────────────────────────
+  - type: pserv
+    name: radius-postgres
+    runtime: docker
+    rootDir: .
+    dockerfilePath: ./Dockerfile.db
+    envVars:
+      - key: POSTGRES_USER
+        value: radius
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: radius_db
+    plan: free
