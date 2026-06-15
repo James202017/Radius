@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  #__next {
+    height: 100%;
+  }
+
+  /* Hide scrollbars but keep functionality */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: var(--safe-top);
+  }
+  .safe-bottom {
+    padding-bottom: var(--safe-bottom);
+  }
+  .pb-nav {
+    padding-bottom: calc(72px + var(--safe-bottom));
+  }
+
+  /* Glass morphism */
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  /* Distance badge colors */
+  .badge-50m { @apply bg-accent-green/20 text-accent-green; }
+  .badge-100m { @apply bg-brand-400/20 text-brand-400; }
+  .badge-500m { @apply bg-accent-amber/20 text-accent-amber; }
+  .badge-1km { @apply bg-white/10 text-white/50; }
+}
