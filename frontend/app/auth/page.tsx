@@ -1,27 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Send, ExternalLink, Smartphone } from "lucide-react";
-import { authApi, profileApi } from "@/utils/api";
 import { useAuthStore } from "@/store/store";
+import { authApi, profileApi } from "@/utils/api";
+import { MapPin, Send, ExternalLink } from "lucide-react";
 
 const BOT_USERNAME = "Radius_my_bot";
 const BOT_LINK = `https://t.me/${BOT_USERNAME}`;
-const TG_SCRIPT = "https://telegram.org/js/telegram-web-app.js";
 
 export default function AuthPage() {
   const router = useRouter();
   const { setAuth, setUser, isAuthenticated } = useAuthStore();
-  const [status, setStatus] = useState<"loading" | "error" | "demo">("loading");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-  const checkAttempts = useRef(0);
-
-  const addDebug = (msg: string) => {
-    console.log("[Radius Auth]", msg);
-    setDebugInfo((prev) => [...prev.slice(-4), msg]);
-  };
+  const [status, setStatus] = useState<"loading" | "error" | "browser">("loading");
+  const [msg, setMsg] = useState("Проверка...");
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -29,115 +21,50 @@ export default function AuthPage() {
       return;
     }
 
-    // Пытаемся загрузить Telegram Web App
-    loadTelegramAndAuth();
-  }, [isAuthenticated, router]);
-
-  async function loadTelegramAndAuth() {
-    addDebug("Проверка Telegram WebApp...");
-
-    // 1. Если Telegram уже загружен — сразу авторизуемся
-    if ((window as any).Telegram?.WebApp) {
-      addDebug("Telegram WebApp найден");
-      await doAuth();
-      return;
-    }
-
-    // 2. Загружаем скрипт Telegram WebApp
-    addDebug("Загрузка скрипта Telegram...");
-    await loadTelegramScript();
-
-    // 3. Ждём появления window.Telegram (до 3 секунд)
+    // Ждём загрузки Telegram WebApp (до 3 секунд)
+    let found = false;
     let attempts = 0;
-    const maxAttempts = 30; // 30 * 100ms = 3 секунды
+    const max = 30;
 
     const interval = setInterval(() => {
       attempts++;
-      checkAttempts.current = attempts;
       const tg = (window as any).Telegram?.WebApp;
 
       if (tg) {
+        found = true;
         clearInterval(interval);
-        addDebug(`Telegram загружен за ${attempts * 100}мс`);
-        doAuth();
+        setMsg("Telegram найден, авторизация...");
+        handleTelegramAuth(tg);
         return;
       }
 
-      if (attempts >= maxAttempts) {
+      if (attempts >= max) {
         clearInterval(interval);
-        addDebug("Telegram не загрузился за 3 секунды — демо-режим");
-        setStatus("demo");
+        if (!found) {
+          setMsg("");
+          setStatus("browser");
+        }
       }
     }, 100);
-  }
 
-  function loadTelegramScript(): Promise<void> {
-    return new Promise((resolve) => {
-      if (document.querySelector(`script[src="${TG_SCRIPT}"]`)) {
-        addDebug("Скрипт Telegram уже в DOM");
-        resolve();
+    return () => clearInterval(interval);
+  }, [isAuthenticated, router]);
+
+  async function handleTelegramAuth(tg: any) {
+    try {
+      tg.ready();
+      tg.expand();
+
+      const initData = tg.initData || "";
+
+      if (!initData) {
+        setStatus("error");
+        setMsg("Нет данных авторизации. Откройте через меню бота.");
         return;
       }
 
-      const script = document.createElement("script");
-      script.src = TG_SCRIPT;
-      script.async = true;
-      script.onload = () => {
-        addDebug("Скрипт Telegram загружен");
-        resolve();
-      };
-      script.onerror = () => {
-        addDebug("Ошибка загрузки скрипта Telegram");
-        resolve(); // Продолжаем — возможно скрипт уже есть
-      };
-      document.head.appendChild(script);
-
-      // Таймаут 2 секунды
-      setTimeout(() => resolve(), 2000);
-    });
-  }
-
-  async function doAuth() {
-    const tg = (window as any).Telegram?.WebApp;
-    if (!tg) {
-      addDebug("Telegram WebApp не найден после загрузки");
-      setStatus("demo");
-      return;
-    }
-
-    tg.ready();
-    tg.expand();
-
-    addDebug("Telegram WebApp ready");
-
-    // Проверяем initData
-    const initData = tg.initData || "";
-    const initDataUnsafe = tg.initDataUnsafe || {};
-
-    addDebug(`initData: ${initData ? "есть" : "нет"}`);
-    addDebug(`initDataUnsafe.user: ${initDataUnsafe.user ? "есть" : "нет"}`);
-
-    if (!initData && !initDataUnsafe.user) {
-      setStatus("error");
-      setErrorMsg(
-        "Не удалось получить данные авторизации из Telegram. " +
-        "Закройте и откройте приложение заново через меню бота."
-      );
-      return;
-    }
-
-    // Если нет initData, но есть initDataUnsafe — используем его для отладки
-    // (в продакшене initData должен быть!)
-    const dataToSend = initData || JSON.stringify(initDataUnsafe);
-
-    try {
-      setStatus("loading");
-      addDebug("Отправка данных на сервер...");
-
-      const res = await authApi.telegramAuth(dataToSend);
+      const res = await authApi.telegramAuth(initData);
       const { access_token, user_id, is_new_user } = res.data;
-
-      addDebug(`Авторизация успешна! Новый пользователь: ${is_new_user}`);
 
       setAuth(access_token, user_id);
 
@@ -150,129 +77,73 @@ export default function AuthPage() {
         router.replace("/nearby");
       }
     } catch (err: any) {
-      console.error("Auth error:", err);
-      addDebug(`Ошибка: ${err.response?.data?.detail || err.message}`);
+      console.error(err);
       setStatus("error");
-      setErrorMsg(
-        err.response?.data?.detail ||
-        "Ошибка авторизации. Попробуйте позже или обратитесь к поддержке."
-      );
+      setMsg(err.response?.data?.detail || "Ошибка входа. Попробуйте позже.");
     }
   }
 
-  // ─── Loading ───────────────────────────
+  // ─── Загрузка (в Telegram) ───
   if (status === "loading") {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-surface-0 px-6 text-center text-white">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-500/20 text-brand-400">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-surface-0 text-white">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-500/20 text-brand-400">
           <MapPin size={32} />
         </div>
-        <h1 className="mb-3 text-2xl font-semibold">Radius</h1>
-        <p className="mb-8 max-w-xs text-sm leading-6 text-white/45">
-          Вход через Telegram...
-        </p>
-        <div className="w-10 h-10 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-        {/* Отладочная информация */}
-        <div className="mt-6 space-y-1">
-          {debugInfo.map((msg, i) => (
-            <p key={i} className="text-xs text-white/20">{msg}</p>
-          ))}
-        </div>
+        <h1 className="text-2xl font-semibold mb-2">Radius</h1>
+        <p className="text-sm text-white/45 mb-6">{msg}</p>
+        <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
       </main>
     );
   }
 
-  // ─── Error ─────────────────
+  // ─── Ошибка (в Telegram, но initData пустой) ───
   if (status === "error") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-surface-0 px-6 text-center text-white">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-500/20 text-red-400">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-500/20 text-red-400">
           <MapPin size={32} />
         </div>
-        <h1 className="mb-3 text-2xl font-semibold">Radius</h1>
-        <p className="mb-8 max-w-xs text-sm leading-6 text-red-300">
-          {errorMsg}
-        </p>
-        {/* Отладочная информация */}
-        <div className="mb-6 rounded-2xl bg-surface-1 p-3 border border-white/5 max-w-xs w-full">
-          <p className="text-xs text-white/30 mb-2">Отладка:</p>
-          {debugInfo.map((msg, i) => (
-            <p key={i} className="text-xs text-white/20">• {msg}</p>
-          ))}
-        </div>
-        <div className="space-y-3">
-          <button
-            onClick={() => router.push("/nearby")}
-            className="rounded-2xl bg-brand-500 px-6 py-3 text-sm font-medium text-white transition active:scale-[0.99]"
-          >
-            Открыть демо-режим
-          </button>
-          <p className="text-xs text-white/30">
-            В демо-режиме доступны все функции без авторизации
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold mb-2">Radius</h1>
+        <p className="text-sm text-red-300 mb-6 max-w-xs">{msg}</p>
+        <a href={BOT_LINK} className="mb-3 flex items-center gap-2 rounded-2xl bg-[#24A1DE] px-6 py-3 text-sm font-medium text-white">
+          <Send size={16} /> Открыть через бота
+        </a>
+        <button onClick={() => router.push("/nearby")} className="rounded-2xl bg-surface-1 px-6 py-3 text-sm text-white/60">
+          Демо-режим
+        </button>
       </main>
     );
   }
 
-  // ─── Browser landing page ─────────────────
+  // ─── Браузер (не Telegram) ───
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-surface-0 px-6 text-center text-white">
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500/20 text-brand-400">
+      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-500/20 text-brand-400">
         <MapPin size={40} />
       </div>
-      <h1 className="mb-2 text-3xl font-semibold">Radius</h1>
-      <p className="mb-2 max-w-xs text-sm leading-6 text-brand-400">
-        Люди рядом с тобой
-      </p>
-      <p className="mb-8 max-w-xs text-sm leading-6 text-white/45">
-        Radius — это мини-приложение для Telegram. Откройте его через бота, чтобы авторизоваться и находить людей поблизости.
+      <h1 className="text-3xl font-semibold mb-2">Radius</h1>
+      <p className="text-sm text-brand-400 mb-2">Люди рядом с тобой</p>
+      <p className="text-sm text-white/45 mb-8 max-w-xs">
+        Это приложение для Telegram. Откройте через бота для автоматического входа.
       </p>
 
-      <a
-        href={BOT_LINK}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mb-4 flex items-center gap-2 rounded-2xl bg-[#24A1DE] px-6 py-3.5 text-sm font-medium text-white transition active:scale-[0.99]"
-      >
-        <Send size={18} />
-        Открыть в Telegram
+      <a href={BOT_LINK} className="mb-4 flex items-center gap-2 rounded-2xl bg-[#24A1DE] px-6 py-3.5 text-sm font-medium text-white">
+        <Send size={18} /> Открыть в Telegram
       </a>
 
-      <div className="mb-8 rounded-2xl bg-surface-1 p-4 border border-white/5">
-        <div className="flex items-center gap-3 mb-2">
-          <Smartphone size={16} className="text-white/40" />
-          <p className="text-sm text-white/60">Как открыть?</p>
-        </div>
-        <ol className="text-left text-xs text-white/40 space-y-2">
-          <li>1. Нажмите кнопку «Открыть в Telegram» выше</li>
-          <li>2. Нажмите «Start» или кнопку меню внизу</li>
+      <div className="mb-8 rounded-2xl bg-surface-1 p-4 border border-white/5 max-w-xs text-left">
+        <p className="text-sm text-white/60 mb-2">Как открыть:</p>
+        <ol className="text-xs text-white/40 space-y-2">
+          <li>1. Нажмите кнопку выше</li>
+          <li>2. Нажмите Start в боте</li>
           <li>3. Приложение откроется автоматически</li>
         </ol>
       </div>
 
-      <div className="border-t border-white/5 pt-6 w-full max-w-xs">
-        <p className="text-xs text-white/30 mb-3">
-          Хотите посмотреть без Telegram?
-        </p>
-        <button
-          onClick={() => router.push("/nearby")}
-          className="flex items-center gap-2 mx-auto rounded-2xl bg-surface-1 border border-white/10 px-6 py-3 text-sm font-medium text-white/60 transition active:scale-[0.99]"
-        >
-          <ExternalLink size={16} />
-          Демо-режим
-        </button>
-      </div>
-
-      {/* Отладка для демо-режима */}
-      {debugInfo.length > 0 && (
-        <div className="mt-6 rounded-2xl bg-surface-1 p-3 border border-white/5 max-w-xs w-full">
-          <p className="text-xs text-white/30 mb-2">Отладка:</p>
-          {debugInfo.map((msg, i) => (
-            <p key={i} className="text-xs text-white/20">• {msg}</p>
-          ))}
-        </div>
-      )}
+      <button onClick={() => router.push("/nearby")} className="flex items-center gap-2 rounded-2xl bg-surface-1 border border-white/10 px-6 py-3 text-sm text-white/60">
+        <ExternalLink size={16} /> Демо-режим
+      </button>
     </main>
   );
 }

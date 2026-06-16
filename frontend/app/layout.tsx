@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "../styles/globals.css";
 import { Providers } from "@/components/providers";
 
@@ -33,6 +34,10 @@ export default function RootLayout({
     <html lang="ru" className="dark">
       <head>
         <meta name="telegram:web_app" content="true" />
+        <Script
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
       </head>
       <body className={`${inter.variable} font-sans bg-surface-0 text-white antialiased`}>
         <Providers>{children}</Providers>
