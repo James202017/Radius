@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    phone VARCHAR(50),
     age INTEGER CHECK (age >= 16 AND age <= 100),
     bio TEXT,
     interests TEXT[] DEFAULT '{}',
@@ -29,6 +30,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration: add phone column if table already exists (for existing databases)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 
 -- Locations table (stores only last known position)
 CREATE TABLE IF NOT EXISTS locations (

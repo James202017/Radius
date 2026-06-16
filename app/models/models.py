@@ -53,6 +53,7 @@ class Profile(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         unique=True,
     )
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     interests: Mapped[List[str]] = mapped_column(ARRAY(String), default=list)

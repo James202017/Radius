@@ -29,6 +29,7 @@ export type DistanceBucket = "50m" | "100m" | "500m" | "1km" | "—";
 
 export interface Profile {
   user_id: string;
+  phone: string | null;
   age: number | null;
   bio: string | null;
   interests: string[];

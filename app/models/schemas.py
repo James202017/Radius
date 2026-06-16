@@ -20,6 +20,7 @@ class AuthResponse(BaseModel):
 # ─── Profile ─────────────────────────────────────────────────────────────────
 
 class ProfileBase(BaseModel):
+    phone: Optional[str] = Field(None, max_length=50)
     age: Optional[int] = Field(None, ge=16, le=100)
     bio: Optional[str] = Field(None, max_length=500)
     interests: List[str] = Field(default_factory=list, max_items=15)
