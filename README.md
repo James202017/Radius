@@ -72,8 +72,8 @@ NEXT_PUBLIC_YANDEX_MAPS_KEY=your_yandex_maps_api_key_here
 ### 1. Создайте бота через @BotFather
 
 ```
-/newbot → @RadiusNearbyBot
-/mybots → @RadiusNearbyBot → Bot Settings → Menu Button → Configure menu button
+/newbot → @Radius_my_bot
+/mybots → @Radius_my_bot → Bot Settings → Menu Button → Configure menu button
                         → Configure Web App → URL: https://your-domain.com
 ```
 

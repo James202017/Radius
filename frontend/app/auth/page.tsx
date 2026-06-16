@@ -6,7 +6,7 @@ import { MapPin, Send, ExternalLink, Smartphone } from "lucide-react";
 import { authApi, profileApi } from "@/utils/api";
 import { useAuthStore } from "@/store/store";
 
-const BOT_USERNAME = "RadiusNearbyBot"; // ← замените на username вашего бота
+const BOT_USERNAME = "Radius_my_bot"; // ← замените на username вашего бота
 const BOT_LINK = `https://t.me/${BOT_USERNAME}`;
 
 export default function AuthPage() {

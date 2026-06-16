@@ -147,10 +147,10 @@ ufw enable
 ```
 /newbot
 → Придумайте имя (Radius)
-→ Придумайте username (RadiusNearbyBot)
+→ Придумайте username (Radius_my_bot)
 
 /mybots
-→ @RadiusNearbyBot
+→ @Radius_my_bot
 → Bot Settings
   → Menu Button
     → Configure menu button
