@@ -10,11 +10,16 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: https://radius-frontend.vercel.app,https://web.telegram.org
+      # ⚠️  Эти переменные НЕ должны быть в git.
+      #     Добавьте их вручную в Render Dashboard → Environment
+      #     (значения ниже — только примеры, замените на реальные)
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
     healthCheckPath: /health
     plan: free
-
-    # ⚠️ Добавьте вручную в Render Dashboard → Environment:
-    # DATABASE_URL=postgresql+asyncpg://USER:PASS@HOST.neon.tech/DB?sslmode=require
-    # REDIS_URL=rediss://default:PASS@HOST.upstash.io:6379
-    # SECRET_KEY=... (openssl rand -hex 32)
-    # TELEGRAM_BOT_TOKEN=... (от @BotFather)
