@@ -9,7 +9,9 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
-        value: https://radius-frontend.vercel.app,https://web.telegram.org
+        value: https://your-frontend.vercel.app,https://web.telegram.org
+      # ⚠️  ЗАМЕНИТЕ выше на ваш реальный URL с Vercel после деплоя фронтенда!
+      #     Пример: https://radius-frontend-abc123.vercel.app,https://web.telegram.org
       # ⚠️  Эти переменные НЕ должны быть в git.
       #     Добавьте их вручную в Render Dashboard → Environment
       #     (значения ниже — только примеры, замените на реальные)
